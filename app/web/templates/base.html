@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Job tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  {% set path = request.url.path %}
+  <header class="topbar">
+    <a class="brand" href="/applications">Job tracker</a>
+    <nav>
+      <a href="/applications" {% if path == '/applications' or (path.startswith('/applications/') and path != '/applications/new') %}aria-current="page"{% endif %}>Applications</a>
+      <a href="/applications/new" {% if path == '/applications/new' %}aria-current="page"{% endif %}>Add application</a>
+      <a href="/settings" {% if path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
+    </nav>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<div id="jd-field" class="field {% if errors.jd_text %}invalid{% endif %}">
+  <label for="jd_text" class="field-label">Job description *</label>
+  {% if errors.jd_text %}<p class="field-error">{{ errors.jd_text }}</p>{% endif %}
+  {% if message %}<p class="field-ok">{{ message }}</p>{% endif %}
+  {% if detected and (detected.title or detected.company or detected.location) %}
+    <p class="hint detected" data-title="{{ detected.title or '' }}" data-company="{{ detected.company or '' }}"
+       data-location="{{ detected.location or '' }}">
+      Found in the posting:
+      {{ detected.title or '' }}{% if detected.company %} at {{ detected.company }}{% endif %}{% if detected.location %} ({{ detected.location }}){% endif %}.
+      Empty fields above were filled in.
+    </p>
+  {% endif %}
+  <textarea id="jd_text" name="jd_text" rows="14" dir="auto"
+            placeholder="Paste the full job description. It is stored with the application, so it stays available after the posting is taken down.">{{ form.jd_text }}</textarea>
+  <input type="hidden" name="jd_fetch_status" value="{{ form.jd_fetch_status or 'manual' }}">
+</div>

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Applications - Job tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Applications</h1>
+  <a class="button primary" href="/applications/new">Add application</a>
+</div>
+
+{% if counts %}
+<div class="stage-summary">
+  {% for stage in pipeline_order + closed_stages %}
+    {% if counts.get(stage) %}
+      <a class="{{ stage | stage_class }}" href="/applications?stage={{ stage.value }}">
+        {{ stage_label(stage) }} <strong>{{ counts[stage] }}</strong>
+      </a>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<form class="filters" method="get" action="/applications"
+      hx-get="/applications" hx-target="#app-table" hx-swap="outerHTML" hx-push-url="true"
+      hx-trigger="change, keyup changed delay:300ms from:.filter-text">
+  <label>Stage
+    <select name="stage">
+      <option value="active" {% if filters.stage == 'active' %}selected{% endif %}>Active</option>
+      <option value="closed" {% if filters.stage == 'closed' %}selected{% endif %}>Closed</option>
+      <option value="all" {% if filters.stage == 'all' %}selected{% endif %}>All</option>
+      <optgroup label="Single stage">
+        {% for stage in pipeline_order + closed_stages %}
+          <option value="{{ stage.value }}" {% if filters.stage == stage.value %}selected{% endif %}>{{ stage_label(stage) }}</option>
+        {% endfor %}
+      </optgroup>
+    </select>
+  </label>
+  <label>Company
+    <input class="filter-text" type="search" name="company" value="{{ filters.company }}" placeholder="Any" dir="auto">
+  </label>
+  <label>Score
+    <span class="range">
+      <input class="filter-text" type="number" name="min_score" min="0" max="100" value="{{ filters.min_score if filters.min_score is not none else '' }}" placeholder="0" aria-label="Minimum score">
+      <span>to</span>
+      <input class="filter-text" type="number" name="max_score" min="0" max="100" value="{{ filters.max_score if filters.max_score is not none else '' }}" placeholder="100" aria-label="Maximum score">
+    </span>
+  </label>
+  <label>Sort by
+    <select name="sort">
+      {% for key, label in [('updated', 'Last updated'), ('applied', 'Applied date'), ('company', 'Company'), ('score', 'Score'), ('stage', 'Stage')] %}
+        <option value="{{ key }}" {% if filters.sort == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Order
+    <select name="dir">
+      <option value="desc" {% if filters.descending %}selected{% endif %}>Descending</option>
+      <option value="asc" {% if not filters.descending %}selected{% endif %}>Ascending</option>
+    </select>
+  </label>
+  <label class="checkbox">
+    <input type="checkbox" name="archived" value="1" {% if filters.show_archived %}checked{% endif %}> Show archived
+  </label>
+  <noscript><button type="submit">Filter</button></noscript>
+</form>
+
+{% include "applications/_table.html" %}
+{% endblock %}

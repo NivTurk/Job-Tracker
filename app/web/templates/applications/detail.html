@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ application.company.name }} - {{ application.title }} - Job tracker{% endblock %}
+{% block content %}
+<div class="detail-head">
+  <div>
+    <p class="company" dir="auto">
+      {{ application.company.name }}
+      {% if application.company.is_target %}<span class="tag">target</span>{% endif %}
+    </p>
+    <h1 dir="auto">{{ application.title }}</h1>
+    <p class="meta">
+      <span id="stage-badge" class="{{ application.stage | stage_class }}">{{ stage_label(application.stage, application.stage_round) }}</span>
+      {% if application.location %}<span dir="auto">{{ application.location }}</span>{% endif %}
+      <span>{{ sources.get(application.source, application.source) }}</span>
+      {% if application.applied_on %}<span>Applied {{ application.applied_on | fmt_date }}</span>{% endif %}
+      {% if application.jd_url %}<a href="{{ application.jd_url }}" target="_blank" rel="noopener noreferrer">Original posting</a>{% endif %}
+    </p>
+  </div>
+  <div class="head-actions">
+    <a class="button" href="/applications/{{ application.id }}/edit">Edit</a>
+    {% if application.is_archived %}
+      <form method="post" action="/applications/{{ application.id }}/unarchive"><button type="submit">Unarchive</button></form>
+    {% else %}
+      <form method="post" action="/applications/{{ application.id }}/archive"><button type="submit">Archive</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if application.is_archived %}
+  <div class="notice">Archived on {{ application.archived_at | fmt_datetime }}. It is hidden from the list unless "Show archived" is on.</div>
+{% endif %}
+{% if duplicates %}
+  {% include "applications/_duplicates.html" %}
+{% endif %}
+
+<div class="detail-grid">
+  <div class="detail-main">
+    {% include "applications/_score.html" %}
+
+    <section class="panel" id="jd">
+      <div class="panel-head">
+        <h2>Job description</h2>
+        <span class="muted small">
+          {% if application.jd_fetch_status == 'fetched' %}fetched from the link{% else %}pasted{% endif %},
+          {{ application.jd_text | length }} characters
+        </span>
+      </div>
+      <div class="jd-text" dir="auto">{{ application.jd_text }}</div>
+    </section>
+  </div>
+
+  <aside class="detail-side">
+    {% include "applications/_status.html" %}
+
+    <section class="panel" id="cvs">
+      <h2>CV versions</h2>
+      {% if application.cv_versions %}
+        <ul class="cv-list">
+        {% for version in application.cv_versions | reverse %}
+          {% set cv = version.cv_file %}
+          {% set result = scores.get(version.id) %}
+          <li class="{% if selected_version and version.id == selected_version.id %}selected{% endif %}">
+            <div class="cv-row">
+              <span class="cv-version">v{{ version.version }}</span>
+              {% if version.is_sent %}<span class="tag sent">sent</span>{% endif %}
+              {% if result and result.scorable %}
+                <span class="score {{ result.score | score_class }}">{{ result.score }}</span>
+              {% else %}
+                <span class="muted small">not scored</span>
+              {% endif %}
+            </div>
+            {% if version.label %}<div dir="auto">{{ version.label }}</div>{% endif %}
+            <div class="muted small" dir="auto">
+              {{ cv.original_name }} · {{ cv.size_bytes | file_size }}{% if cv.page_count %} · {{ cv.page_count }} page{{ '' if cv.page_count == 1 else 's' }}{% endif %}
+              · {{ version.attached_at | fmt_datetime }}
+            </div>
+            <div class="cv-actions">
+              <a href="/applications/{{ application.id }}?cv={{ version.id }}#score-panel"
+                 hx-get="/applications/{{ application.id }}/score?cv={{ version.id }}" hx-target="#score-panel" hx-swap="outerHTML">Breakdown</a>
+              <a href="/cvs/{{ cv.id }}/download">Download</a>
+              {% if not version.is_sent %}
+                <form method="post" action="/applications/{{ application.id }}/cvs/{{ version.id }}/sent">
+                  <button class="link" type="submit">Mark as sent</button>
+                </form>
+              {% endif %}
+            </div>
+            <details>
+              <summary>Extracted text</summary>
+              {% if cv.text_ok %}
+                <div class="cv-text" dir="auto">{{ cv.text }}</div>
+              {% else %}
+                <p class="field-error">No text could be extracted from this file.</p>
+              {% endif %}
+            </details>
+          </li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No CV attached yet.</p>
+      {% endif %}
+
+      <form class="upload" method="post" action="/applications/{{ application.id }}/cvs" enctype="multipart/form-data">
+        <label>Add a version (PDF or DOCX)
+          <input type="file" name="cv_file" required accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+        </label>
+        <label>Label (optional)
+          <input name="cv_label" placeholder="what changed">
+        </label>
+        <button type="submit">Upload</button>
+        <p class="hint">The newest upload becomes the sent version. You can change that afterwards.</p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Details</h2>
+      <dl class="facts">
+        {% if application.contact_name or application.contact_details %}
+          <dt>Contact</dt>
+          <dd dir="auto">{{ application.contact_name or '' }}{% if application.contact_details %}<br>{{ application.contact_details }}{% endif %}</dd>
+        {% endif %}
+        {% if application.offer_deadline %}
+          <dt>Offer deadline</dt><dd>{{ application.offer_deadline | fmt_date }}</dd>
+        {% endif %}
+        <dt>Added</dt><dd>{{ application.created_at | fmt_datetime }}</dd>
+        <dt>Last updated</dt><dd>{{ application.updated_at | fmt_datetime }}</dd>
+      </dl>
+      {% if application.notes %}
+        <h3>Notes</h3>
+        <div class="notes" dir="auto">{{ application.notes }}</div>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

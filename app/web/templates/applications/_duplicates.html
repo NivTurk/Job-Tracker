@@ -1,0 +1,15 @@
+{% if duplicates %}
+<div class="notice warn">
+  <p>Possible duplicate. You already have:</p>
+  <ul>
+    {% for dup in duplicates %}
+      <li>
+        <a href="/applications/{{ dup.id }}" target="_blank" dir="auto">{{ dup.company.name }} - {{ dup.title }}</a>
+        <span class="{{ dup.stage | stage_class }}">{{ stage_label(dup.stage, dup.stage_round) }}</span>
+        {% if dup.applied_on %}<span class="muted small">applied {{ dup.applied_on | fmt_date }}</span>{% endif %}
+        {% if dup.is_archived %}<span class="muted small">(archived)</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

@@ -1,0 +1,108 @@
+{% macro skill_list(items) %}
+  <ul class="skills">
+    {% for item in items %}
+      <li class="skill skill-{{ item.status }}"
+          title="{% if item.status == 'matched' %}Found in the CV as &quot;{{ item.cv_evidence }}&quot;{% elif item.status == 'implied' %}Implied by {{ item.cv_evidence }}{% else %}Not found in the CV{% endif %}. In the JD as: {{ item.jd_phrases | join(', ') }}">
+        <span class="mark" aria-hidden="true">{% if item.status == 'matched' %}&#10003;{% elif item.status == 'implied' %}~{% else %}&#10007;{% endif %}</span>
+        {{ item.skill }}{% if item.status == 'implied' %} <span class="via">via {{ item.cv_evidence }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+<section class="panel" id="score-panel">
+  <div class="panel-head">
+    <h2>ATS score</h2>
+    {% if selected_version %}
+      <span class="muted small">
+        CV v{{ selected_version.version }}{% if selected_version.is_sent %} (sent){% endif %}
+        {% if application.cv_versions | length > 1 %}
+          &middot;
+          {% for version in application.cv_versions %}
+            {% if version.id != selected_version.id %}
+              <a href="/applications/{{ application.id }}?cv={{ version.id }}#score-panel"
+                 hx-get="/applications/{{ application.id }}/score?cv={{ version.id }}" hx-target="#score-panel" hx-swap="outerHTML">v{{ version.version }}</a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </span>
+    {% endif %}
+  </div>
+
+  {% set result = selected_score %}
+  {% if not selected_version %}
+    <p class="muted">Attach a CV to see how it matches this job.</p>
+  {% elif not result.scorable %}
+    <p class="field-error">{{ result.reason }}</p>
+    {% if result.format_score is not none %}
+      <p>Format score: <span class="score {{ result.format_score | score_class }}">{{ result.format_score }}</span></p>
+    {% endif %}
+  {% else %}
+    <div class="score-summary">
+      <div class="score-big {{ result.score | score_class }}">
+        <span class="value">{{ result.score }}</span>
+        <span class="label">deterministic</span>
+      </div>
+      <dl class="subscores">
+        <dt>Keywords</dt><dd>{{ result.keyword_score }}</dd>
+        <dt>Format</dt><dd>{{ result.format_score }}</dd>
+        <dt>AI score</dt><dd class="muted">not set up yet</dd>
+      </dl>
+    </div>
+  {% endif %}
+
+  {% if result and result.notes %}
+    <ul class="notes-list">{% for note in result.notes %}<li>{{ note }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if result and result.match %}
+    {% if result.missing_required %}
+      <div class="missing">
+        <h3>Missing required</h3>
+        <p dir="auto">{{ result.missing_required | map(attribute='skill') | join(', ') }}</p>
+      </div>
+    {% endif %}
+    <div class="skill-groups">
+      <div>
+        <h3>Required <span class="muted small">({{ result.match.required | length }})</span></h3>
+        {% if result.match.required %}{{ skill_list(result.match.required) }}{% else %}<p class="muted small">None detected.</p>{% endif %}
+      </div>
+      <div>
+        <h3>Preferred <span class="muted small">({{ result.match.preferred | length }})</span></h3>
+        {% if result.match.preferred %}{{ skill_list(result.match.preferred) }}{% else %}<p class="muted small">None detected.</p>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if result and result.format_warnings %}
+    <h3>Format checks</h3>
+    <ul class="format-warnings">
+      {% for warning in result.format_warnings %}
+        <li class="sev-{{ warning.severity }}"><span class="sev">{{ warning.severity }}</span> {{ warning.message }}</li>
+      {% endfor %}
+    </ul>
+  {% elif result and result.scorable %}
+    <h3>Format checks</h3>
+    <p class="muted small">No format problems found.</p>
+  {% endif %}
+
+  {% if result and result.sections %}
+    <details class="method">
+      <summary>How this was scored</summary>
+      <p class="small">
+        JD sections found:
+        {% if result.sections.headings_found %}
+          {% for heading, kind in result.sections.headings_found %}"{{ heading }}" ({{ kind }}){{ ', ' if not loop.last }}{% endfor %}.
+        {% else %}none.{% endif %}
+      </p>
+      <p class="small">
+        Keyword score: weighted share of the JD's known skills found in the CV. A required skill weighs
+        {{ '%g' % weights.required_weight }}, a preferred one {{ '%g' % weights.preferred_weight }}; a skill only implied by
+        another (for example Networking by TCP/IP) earns {{ (weights.implied_credit * 100) | round | int }}% credit.
+        The deterministic score is {{ (weights.keyword_share * 100) | round | int }}% keywords and
+        {{ ((1 - weights.keyword_share) * 100) | round | int }}% format. Format starts at 100 and loses 10 per warning.
+        Skill list version {{ result.lexicon_version }}.
+      </p>
+    </details>
+  {% endif %}
+</section>

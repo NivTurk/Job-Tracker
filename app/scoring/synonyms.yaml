@@ -1,0 +1,264 @@
+# Skill vocabulary for the deterministic ATS score.
+#
+# Each entry is a canonical skill name (shown in the UI) with:
+#   aliases  - phrases that count as this skill. Case-insensitive. Spaces and
+#              hyphens are interchangeable ("real time" == "real-time").
+#              The canonical name is NOT added automatically; list it if it
+#              should match.
+#   implies  - (optional) having this skill in the CV counts as an implied,
+#              partial match for these skills. Directional: TCP/IP implies
+#              Networking, not the other way round.
+#   strict   - (optional) short or ambiguous aliases. Stricter word boundaries:
+#              no hyphen, apostrophe or dot right next to the alias.
+#
+# Ambiguous words that would cause false matches are left out on purpose:
+# bare "go", "make", "rest", "ts", "ips", "networks" (neural networks), "crypto".
+#
+# Adding a skill here changes scores, so the deterministic score is only
+# reproducible for the same version of this file.
+
+skills:
+  # --- Languages -----------------------------------------------------------
+  C:
+    aliases: [c, ansi c, c language, c programming, c99, c11, embedded c]
+    strict: true
+  C++:
+    aliases: [c++, cpp, c plus plus, modern c++, c++11, c++14, c++17, c++20, c++23]
+  C#:
+    aliases: [c#, csharp, c sharp, .net, dotnet]
+  Python:
+    aliases: [python, python3, python 3, פייתון]
+  Java:
+    aliases: [java, ג'אווה]
+  JavaScript:
+    aliases: [javascript, js, ecmascript, node.js, nodejs]
+  TypeScript:
+    aliases: [typescript]
+  Go:
+    aliases: [golang, go lang, go language]
+  Rust:
+    aliases: [rust]
+  Assembly:
+    aliases: [assembly, assembler, asm, x86 assembly, arm assembly, אסמבלי]
+    strict: true
+  Bash / shell scripting:
+    aliases: [bash, shell scripting, shell scripts, shell script, bash scripting, zsh]
+  PowerShell:
+    aliases: [powershell]
+  SQL:
+    aliases: [sql, t-sql, pl/sql, sql queries]
+  Verilog / VHDL:
+    aliases: [verilog, systemverilog, vhdl]
+  MATLAB:
+    aliases: [matlab]
+
+  # --- Operating systems & low level ---------------------------------------
+  Linux:
+    aliases: [linux, linux os, linux environment, gnu/linux, unix, לינוקס]
+  Ubuntu / Debian / RHEL:
+    aliases: [ubuntu, debian, rhel, red hat, centos, fedora]
+    implies: [Linux]
+  Linux kernel:
+    aliases: [linux kernel, kernel development, kernel programming, kernel module, kernel modules, kernel space, kernel internals, kernel level]
+    implies: [Linux, Operating systems]
+  Device drivers:
+    aliases: [device drivers, device driver, driver development, drivers development, kernel drivers, linux drivers, דרייברים]
+    implies: [Linux kernel, Operating systems]
+  Operating systems:
+    aliases: [operating systems, operating system, os internals, os fundamentals, מערכות הפעלה]
+  Windows internals:
+    aliases: [windows internals, win32, winapi, windows api, windows kernel, wdm, kmdf]
+    implies: [Operating systems]
+  Embedded systems:
+    aliases: [embedded, embedded systems, embedded software, embedded development, embedded linux, מערכות משובצות, מערכות משובצות מחשב, אמבדד]
+  Firmware:
+    aliases: [firmware, firmware development, קושחה]
+    implies: [Embedded systems]
+  RTOS:
+    aliases: [rtos, freertos, real time operating system, real-time operating systems, zephyr, threadx, vxworks, rtems]
+    implies: [Embedded systems, Real-time systems]
+  Real-time systems:
+    aliases: [real-time systems, real time systems, real-time, hard real-time, זמן אמת]
+  Bare metal:
+    aliases: [bare metal, bare-metal programming]
+    implies: [Embedded systems]
+  Microcontrollers:
+    aliases: [microcontroller, microcontrollers, mcu, mcus, stm32, cortex-m, arm cortex-m, avr, pic microcontroller, esp32, arduino, בקרים]
+    implies: [Embedded systems]
+  ARM architecture:
+    aliases: [arm, arm architecture, armv7, armv8, aarch64, arm64]
+    strict: true
+  x86:
+    aliases: [x86, x86-64, x86_64, amd64]
+  Computer architecture:
+    aliases: [computer architecture, cpu architecture, computer organization, ארכיטקטורת מחשבים, מבנה מחשבים]
+  Multithreading / concurrency:
+    aliases: [multithreading, multi-threading, multithreaded, concurrency, concurrent programming, parallel programming, pthreads, thread synchronization, lock-free]
+  Memory management:
+    aliases: [memory management, memory allocation, virtual memory, ניהול זיכרון]
+  Debugging tools:
+    aliases: [gdb, lldb, debugging, debugger, valgrind, windbg, jtag, oscilloscope, logic analyzer]
+  Hardware interfaces:
+    aliases: [spi, i2c, uart, can bus, canbus, pcie, pci express, usb protocol, dma, gpio, ethernet phy]
+    implies: [Embedded systems]
+  Bootloaders:
+    aliases: [bootloader, bootloaders, u-boot, uboot, uefi, bios]
+  Yocto / Buildroot:
+    aliases: [yocto, bitbake, buildroot, device tree, openembedded]
+    implies: [Embedded systems, Linux]
+  Build systems:
+    aliases: [cmake, makefile, makefiles, gnu make, bazel, meson, autotools]
+  Compilers / toolchains:
+    aliases: [compilers, compiler, llvm, gcc, clang, toolchain, toolchains, cross compilation, cross-compilation]
+  Performance optimization:
+    aliases: [performance optimization, performance tuning, profiling, low latency, low-latency, high performance, perf]
+    strict: true
+
+  # --- Networking -----------------------------------------------------------
+  Networking:
+    aliases: [networking, computer networks, computer networking, network protocols, networking protocols, communication protocols, רשתות, רשתות תקשורת, תקשורת נתונים, תקשורת מחשבים]
+  TCP/IP:
+    aliases: [tcp/ip, tcp ip, tcp, tcp/udp, ip networking, ipv4, ipv6, internet protocol suite]
+    implies: [Networking]
+  UDP:
+    aliases: [udp]
+    implies: [Networking]
+  OSI model / L2-L3:
+    aliases: [osi model, osi, layer 2, layer 3, l2/l3, l2-l3, l2, l3, l4, l7]
+    strict: true
+    implies: [Networking]
+  Routing & switching:
+    aliases: [routing, switching, routing protocols, bgp, ospf, is-is, mpls, vlan, vlans, ccna]
+    implies: [Networking]
+  DNS:
+    aliases: [dns]
+    implies: [Networking]
+  HTTP:
+    aliases: [http, https, http/2, http2]
+    implies: [Networking]
+  TLS/SSL:
+    aliases: [tls, ssl, tls/ssl, ssl/tls, mtls]
+  Packet analysis:
+    aliases: [packet analysis, packet capture, wireshark, tcpdump, scapy, pcap, libpcap, traffic analysis, network traffic analysis]
+    implies: [Networking]
+  Socket programming:
+    aliases: [sockets, socket programming, berkeley sockets, network programming]
+    implies: [Networking]
+  VPN / IPsec:
+    aliases: [vpn, vpns, ipsec, wireguard, openvpn]
+    implies: [Networking]
+  Firewalls:
+    aliases: [firewall, firewalls, iptables, nftables, ngfw, packet filtering]
+    implies: [Network security]
+  DPDK / eBPF:
+    aliases: [dpdk, ebpf, xdp, bpf, netfilter, kernel bypass]
+    implies: [Networking]
+  SDN:
+    aliases: [sdn, software defined networking, software-defined networking, openflow]
+    implies: [Networking]
+
+  # --- Security -------------------------------------------------------------
+  Cybersecurity:
+    aliases: [security, cyber security, cybersecurity, cyber, information security, infosec, אבטחת מידע, סייבר]
+  Network security:
+    aliases: [network security, אבטחת רשתות]
+    implies: [Cybersecurity, Networking]
+  Application security:
+    aliases: [application security, appsec, secure coding, owasp, secure development]
+    implies: [Cybersecurity]
+  Reverse engineering:
+    aliases: [reverse engineering, reversing, ida pro, ghidra, binary ninja, radare2, x64dbg, ollydbg, הנדסה לאחור]
+    implies: [Cybersecurity]
+  Malware analysis:
+    aliases: [malware analysis, malware research, malware]
+    implies: [Cybersecurity]
+  Vulnerability research:
+    aliases: [vulnerability research, exploit development, exploitation, binary exploitation, vulnerability analysis, cve]
+    implies: [Cybersecurity]
+  Fuzzing:
+    aliases: [fuzzing, fuzzer, afl, afl++, libfuzzer]
+    implies: [Vulnerability research]
+  Penetration testing:
+    aliases: [penetration testing, pentesting, pen testing, pentest, burp suite, metasploit, red team, red teaming]
+    implies: [Cybersecurity]
+  Cryptography:
+    aliases: [cryptography, encryption, pki, cryptographic, הצפנה]
+  IDS / IPS:
+    aliases: [ids/ips, intrusion detection, intrusion prevention, snort, suricata, zeek]
+    implies: [Network security]
+  SIEM:
+    aliases: [siem, splunk, qradar, elastic siem, microsoft sentinel]
+    implies: [Cybersecurity]
+  Threat detection:
+    aliases: [threat detection, threat hunting, detection engineering, anomaly detection, threat intelligence]
+    implies: [Cybersecurity]
+  Incident response / forensics:
+    aliases: [incident response, dfir, digital forensics, forensics, soc analyst, security operations center]
+    implies: [Cybersecurity]
+  Cloud security:
+    aliases: [cloud security, cspm, cnapp, cwpp, container security]
+    implies: [Cybersecurity]
+  Identity & access:
+    aliases: [iam, identity and access management, oauth, oauth2, saml, sso, kerberos, active directory]
+  CTF:
+    aliases: [ctf, ctfs, capture the flag]
+    implies: [Cybersecurity]
+
+  # --- Cloud & DevOps -------------------------------------------------------
+  AWS:
+    aliases: [aws, amazon web services, ec2, aws lambda]
+  Azure:
+    aliases: [azure, microsoft azure]
+  GCP:
+    aliases: [gcp, google cloud, google cloud platform]
+  Docker / containers:
+    aliases: [docker, containers, containerization, podman]
+  Kubernetes:
+    aliases: [kubernetes, k8s, eks, gke, aks, helm, openshift]
+    implies: [Docker / containers]
+  Terraform / IaC:
+    aliases: [terraform, infrastructure as code, iac, pulumi, cloudformation]
+  Ansible:
+    aliases: [ansible]
+  CI/CD:
+    aliases: [ci/cd, ci cd, continuous integration, continuous delivery, jenkins, github actions, gitlab ci, circleci]
+  Git:
+    aliases: [git, github, gitlab, bitbucket, version control, source control]
+
+  # --- Software engineering -------------------------------------------------
+  Data structures:
+    aliases: [data structures, מבני נתונים]
+  Algorithms:
+    aliases: [algorithms, algorithm design, אלגוריתמים]
+  OOP:
+    aliases: [oop, object oriented, object-oriented, object oriented programming, object oriented design, ood, תכנות מונחה עצמים]
+  Design patterns:
+    aliases: [design patterns, software design, software architecture]
+  Unit testing:
+    aliases: [unit testing, unit tests, unit test, pytest, gtest, googletest, google test, tdd, test driven development]
+  REST APIs:
+    aliases: [rest api, rest apis, restful, restful api, rest services, grpc]
+  Databases:
+    aliases: [databases, database, postgresql, postgres, mysql, mongodb, redis, sqlite, elasticsearch, מסדי נתונים]
+  Distributed systems:
+    aliases: [distributed systems, distributed computing, microservices, scalable systems, kafka, rabbitmq]
+  Storage systems:
+    aliases: [storage, storage systems, file systems, filesystems, file system, nvme, block storage, rdma, ssd]
+  GPU / CUDA:
+    aliases: [cuda, gpu programming, gpu, gpus, opencl, gpgpu]
+  Machine learning:
+    aliases: [machine learning, ml, scikit-learn, sklearn, למידת מכונה]
+    strict: true
+  Deep learning:
+    aliases: [deep learning, neural networks, neural network, pytorch, tensorflow, keras, למידה עמוקה]
+    implies: [Machine learning]
+  Image processing / computer vision:
+    aliases: [computer vision, image processing, opencv, ראייה ממוחשבת, עיבוד תמונה]
+
+  # --- Education & languages ------------------------------------------------
+  CS / EE degree:
+    aliases: [computer science, electrical engineering, computer engineering, software engineering degree, b.sc, bsc, b.sc., מדעי המחשב, הנדסת חשמל, הנדסת מחשבים, הנדסת תוכנה, תואר ראשון]
+  English:
+    aliases: [english, אנגלית]
+  Hebrew:
+    aliases: [hebrew, עברית]

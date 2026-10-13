@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% set editing = application is not none %}
+{% block title %}{{ 'Edit' if editing else 'Add' }} application - Job tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Edit application' if editing else 'Add application' }}</h1>
+  {% if editing %}<a href="/applications/{{ application.id }}">Back to the application</a>{% endif %}
+</div>
+
+{% if errors %}
+<div class="notice error" role="alert">
+  <p>Some fields need attention:</p>
+  <ul>{% for message in errors.values() %}<li>{{ message }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form class="app-form" method="post" enctype="multipart/form-data"
+      action="{{ '/applications/%d/edit' % application.id if editing else '/applications' }}">
+
+  <fieldset>
+    <legend>Job</legend>
+    <div class="grid-2">
+      <label class="{% if errors.company %}invalid{% endif %}">Company *
+        <input id="company" name="company" value="{{ form.company }}" required dir="auto" autocomplete="off"
+               hx-get="/applications/duplicates" hx-trigger="change" hx-target="#dup-warning"
+               hx-include="#company,#title" {% if editing %}hx-vals='{"exclude": {{ application.id }}}'{% endif %}>
+      </label>
+      <label class="{% if errors.title %}invalid{% endif %}">Job title *
+        <input id="title" name="title" value="{{ form.title }}" required dir="auto" autocomplete="off"
+               hx-get="/applications/duplicates" hx-trigger="change" hx-target="#dup-warning"
+               hx-include="#company,#title" {% if editing %}hx-vals='{"exclude": {{ application.id }}}'{% endif %}>
+      </label>
+      <label>Location
+        <input id="location" name="location" value="{{ form.location }}" dir="auto" placeholder="e.g. Tel Aviv, hybrid">
+      </label>
+      <label>Source
+        <select name="source">
+          {% for key, label in sources.items() %}
+            <option value="{{ key }}" {% if form.source == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div id="dup-warning">
+      {% include "applications/_duplicates.html" %}
+    </div>
+    {% if errors.duplicate %}
+      <label class="checkbox confirm">
+        <input type="checkbox" name="confirm_duplicate" value="1"> Save anyway, this is a different position
+      </label>
+    {% endif %}
+
+    <label class="{% if errors.jd_url %}invalid{% endif %}">Link to the posting
+      <span class="inline-field">
+        <input type="url" name="jd_url" value="{{ form.jd_url }}" placeholder="https://..." dir="ltr">
+        <button type="button" hx-post="/applications/fetch-jd" hx-include="[name=jd_url],[name=jd_text]"
+                hx-target="#jd-field" hx-swap="outerHTML" hx-indicator="#fetch-indicator">Fetch text</button>
+        <span id="fetch-indicator" class="htmx-indicator muted small">Fetching...</span>
+      </span>
+      <span class="hint">LinkedIn pages are not fetched. Paste the text for those.</span>
+    </label>
+
+    {% include "applications/_jd_field.html" %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Status</legend>
+    <div class="grid-2">
+      {% if not editing %}
+      <div class="field">
+        <span class="field-label">Starting stage</span>
+        <label class="checkbox"><input type="radio" name="initial_stage" value="applied" {% if form.initial_stage != 'saved' %}checked{% endif %}> Applied</label>
+        <label class="checkbox"><input type="radio" name="initial_stage" value="saved" {% if form.initial_stage == 'saved' %}checked{% endif %}> Saved (not applied yet)</label>
+      </div>
+      {% endif %}
+      <label class="{% if errors.applied_on %}invalid{% endif %}">Applied on
+        <input type="date" name="applied_on" value="{{ form.applied_on }}">
+        {% if not editing %}<span class="hint">Ignored for Saved.</span>{% endif %}
+      </label>
+      {% if editing %}
+      <label class="{% if errors.offer_deadline %}invalid{% endif %}">Offer deadline
+        <input type="date" name="offer_deadline" value="{{ form.offer_deadline }}">
+      </label>
+      {% endif %}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Contact (optional)</legend>
+    <div class="grid-2">
+      <label>Name
+        <input name="contact_name" value="{{ form.contact_name }}" dir="auto">
+      </label>
+      <label>Email / phone / LinkedIn
+        <input name="contact_details" value="{{ form.contact_details }}" dir="auto">
+      </label>
+    </div>
+  </fieldset>
+
+  {% if not editing %}
+  <fieldset>
+    <legend>CV sent</legend>
+    <div class="grid-2">
+      <label class="{% if errors.cv_file %}invalid{% endif %}">File (PDF or DOCX)
+        <input type="file" name="cv_file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      </label>
+      <label>Label (optional)
+        <input name="cv_label" value="{{ form.cv_label }}" placeholder="e.g. systems base + kernel project">
+      </label>
+    </div>
+  </fieldset>
+  {% endif %}
+
+  <fieldset>
+    <legend>Notes</legend>
+    <textarea name="notes" rows="3" dir="auto">{{ form.notes }}</textarea>
+  </fieldset>
+
+  <div class="actions">
+    <button class="primary" type="submit">{{ 'Save changes' if editing else 'Add application' }}</button>
+    <a href="{{ '/applications/%d' % application.id if editing else '/applications' }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

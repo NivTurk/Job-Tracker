@@ -1,0 +1,22 @@
+Embedded Software Engineer - Student Position
+
+About the role
+Join the networking team and build firmware for our SmartNICs. You will write drivers in C and work closely with the hardware team.
+
+Responsibilities:
+- Develop and debug firmware features
+- Work with Rust prototypes from the research team
+
+Requirements:
+- B.Sc. student in Computer Science or Electrical Engineering, at least 2 years left
+- Strong C/C++ programming skills
+- Experience with Linux kernel development
+- Knowledge of networking protocols
+- Familiarity with Python - an advantage
+
+Nice to have
+- Kubernetes
+- Experience with Wireshark
+
+What we offer
+- Flexible hours around your studies

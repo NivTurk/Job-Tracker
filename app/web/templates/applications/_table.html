@@ -1,0 +1,59 @@
+<div id="app-table">
+{% if rows %}
+<p class="muted small">{{ rows | length }} application{{ '' if rows | length == 1 else 's' }}</p>
+<table class="apps">
+  <thead>
+    <tr>
+      <th>Company</th>
+      <th>Role</th>
+      <th>Stage</th>
+      <th>Applied</th>
+      <th>CV</th>
+      <th class="num">Score</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    {% set app = row.application %}
+    <tr class="{% if app.is_archived %}archived{% endif %}">
+      <td dir="auto">
+        <a href="/applications/{{ app.id }}">{{ app.company.name }}</a>
+        {% if app.company.is_target %}<span class="tag" title="On your target list">target</span>{% endif %}
+      </td>
+      <td>
+        <a href="/applications/{{ app.id }}" dir="auto">{{ app.title }}</a>
+        {% if app.location %}<div class="muted small" dir="auto">{{ app.location }}</div>{% endif %}
+      </td>
+      <td>
+        <span class="{{ app.stage | stage_class }}">{{ stage_label(app.stage, app.stage_round) }}</span>
+        <div class="muted small">since {{ app.stage_entered_on | fmt_date }}</div>
+      </td>
+      <td class="nowrap">{{ app.applied_on | fmt_date if app.applied_on else '-' }}</td>
+      <td class="nowrap">
+        {% if row.cv_count %}v{{ app.sent_cv.version if app.sent_cv else '?' }}{% if row.cv_count > 1 %} <span class="muted small">of {{ row.cv_count }}</span>{% endif %}
+        {% else %}<span class="muted">none</span>{% endif %}
+      </td>
+      <td class="num">
+        {% if row.score_value is not none %}
+          <span class="score {{ row.score_value | score_class }}">{{ row.score_value }}</span>
+        {% elif row.score %}
+          <span class="muted small" title="{{ row.score.reason }}">n/a</span>
+        {% else %}
+          <span class="muted small">-</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  {% if filters.stage == 'active' and not filters.company and filters.min_score is none and filters.max_score is none %}
+    <p>No active applications.</p>
+    <p><a class="button primary" href="/applications/new">Add application</a></p>
+  {% else %}
+    <p>No applications match these filters.</p>
+  {% endif %}
+</div>
+{% endif %}
+</div>

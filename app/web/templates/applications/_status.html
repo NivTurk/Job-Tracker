@@ -1,0 +1,98 @@
+<section class="panel" id="status-panel">
+  {% if oob %}
+    <span id="stage-badge" hx-swap-oob="true" class="{{ application.stage | stage_class }}">{{ stage_label(application.stage, application.stage_round) }}</span>
+  {% endif %}
+  <h2>Status</h2>
+  <p class="current-stage">
+    <span class="{{ application.stage | stage_class }}">{{ stage_label(application.stage, application.stage_round) }}</span>
+    <span class="muted small">since {{ application.stage_entered_on | fmt_date }} ({{ (today - application.stage_entered_on).days }} days)</span>
+  </p>
+
+  {% if status_error %}<p class="field-error" role="alert">{{ status_error }}</p>{% endif %}
+
+  <form class="expected" hx-post="/applications/{{ application.id }}/expected" hx-target="#status-panel" hx-swap="outerHTML"
+        method="post" action="/applications/{{ application.id }}/expected">
+    <label>Expected answer by
+      <span class="inline-field">
+        <input type="date" name="expected_answer_by" value="{{ application.expected_answer_by.isoformat() if application.expected_answer_by else '' }}">
+        <button type="submit">Set</button>
+      </span>
+    </label>
+    <span class="hint">Overrides the default follow-up threshold for this stage.</span>
+  </form>
+
+  <form class="stage-form" hx-post="/applications/{{ application.id }}/stage" hx-target="#status-panel" hx-swap="outerHTML"
+        method="post" action="/applications/{{ application.id }}/stage">
+    <label>Move to
+      <select name="to_stage" required>
+        <option value="">Choose...</option>
+        <optgroup label="Next">
+          {% for stage in next_stages %}
+            <option value="{{ stage.value }}">{{ stage_label(stage) }}{% if stage == 'technical' and application.stage == 'technical' %} (next round){% endif %}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Other">
+          {% for stage in all_stages if stage not in next_stages and stage != application.stage %}
+            <option value="{{ stage.value }}">{{ stage_label(stage) }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
+    </label>
+    <div class="grid-2">
+      <label>Date
+        <input type="date" name="occurred_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}">
+      </label>
+      <label>Expected answer by
+        <input type="date" name="expected_answer_by">
+      </label>
+    </div>
+    <label>Note (optional)
+      <input name="note" dir="auto" placeholder="e.g. spoke with Dana from HR">
+    </label>
+    <button class="primary" type="submit">Update stage</button>
+  </form>
+
+  {% if can_undo %}
+    <form hx-post="/applications/{{ application.id }}/stage/undo" hx-target="#status-panel" hx-swap="outerHTML"
+          hx-confirm="Undo the last stage change?" method="post" action="/applications/{{ application.id }}/stage/undo">
+      <button class="link" type="submit">Undo last stage change</button>
+    </form>
+  {% endif %}
+
+  <h3>Timeline</h3>
+  <ol class="timeline">
+    {% for event in timeline %}
+      <li class="{% if event.is_undone %}undone{% endif %} event-{{ event.kind }}">
+        <span class="when">{{ event.occurred_on | fmt_date }}</span>
+        <span class="what">
+          {% if event.kind == 'stage_change' %}
+            {% if event.from_stage %}
+              {{ stage_label(event.from_stage) }} &rarr; <strong>{{ stage_label(event.to_stage, event.stage_round) }}</strong>
+            {% else %}
+              Added as <strong>{{ stage_label(event.to_stage, event.stage_round) }}</strong>
+            {% endif %}
+            {% if event.expected_answer_by %}<span class="muted small">answer expected by {{ event.expected_answer_by | fmt_date }}</span>{% endif %}
+          {% elif event.kind == 'followup' %}
+            Followed up
+          {% elif event.kind == 'snooze' %}
+            Snoozed
+          {% else %}
+            Note
+          {% endif %}
+          {% if event.is_undone %}<span class="muted small">(undone)</span>{% endif %}
+          {% if event.note %}<span class="event-note" dir="auto">{{ event.note }}</span>{% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ol>
+
+  <form class="note-form" hx-post="/applications/{{ application.id }}/notes" hx-target="#status-panel" hx-swap="outerHTML"
+        method="post" action="/applications/{{ application.id }}/notes">
+    <label>Add to timeline
+      <span class="inline-field">
+        <input name="note" dir="auto" placeholder="A note, dated today" required>
+        <button type="submit">Add</button>
+      </span>
+    </label>
+  </form>
+</section>

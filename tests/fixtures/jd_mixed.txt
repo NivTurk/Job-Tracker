@@ -1,0 +1,14 @@
+🚀 We're hiring: Security Research Student
+
+Who we are
+A cloud security company based in Tel Aviv.
+
+What you'll need:
+- Reverse engineering experience (IDA Pro / Ghidra)
+- Strong understanding of operating systems internals
+- תואר במדעי המחשב (בתהליך)
+- אנגלית ברמה גבוהה
+
+Bonus points
+- CTF experience
+- Kubernetes or AWS

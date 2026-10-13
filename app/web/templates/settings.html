@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Settings - Job tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Settings</h1>
+</div>
+
+{% if message %}<div class="notice ok" role="status">{{ message }}</div>{% endif %}
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+
+<div class="settings-grid">
+  <section class="panel">
+    <h2>Job search preferences</h2>
+    <p class="muted small">One item per line. Used by the job search (phase 4). Target companies are also marked in the list.</p>
+    <form method="post" action="/settings" class="settings-form">
+      <label>Target companies
+        <textarea name="target_companies" rows="9" dir="auto">{{ settings.target_companies | join('\n') }}</textarea>
+      </label>
+      <label>Preferred locations
+        <textarea name="preferred_locations" rows="5" dir="auto">{{ settings.preferred_locations | join('\n') }}</textarea>
+      </label>
+      <label>Role keywords
+        <textarea name="role_keywords" rows="6" dir="auto">{{ settings.role_keywords | join('\n') }}</textarea>
+      </label>
+      <label>Seniority
+        <textarea name="seniority" rows="3">{{ settings.seniority | join('\n') }}</textarea>
+      </label>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Base CVs</h2>
+    <p class="muted small">The two CVs you tailor from. The job search scores openings against both and suggests the better fit.</p>
+    {% for role, label in base_roles.items() %}
+      {% set cv = base_cvs.get(role) %}
+      <div class="base-cv">
+        <h3>{{ label }}</h3>
+        {% if cv %}
+          <p class="small" dir="auto">
+            <a href="/cvs/{{ cv.id }}/download">{{ cv.original_name }}</a>
+            <span class="muted">· {{ cv.size_bytes | file_size }} · uploaded {{ cv.uploaded_at | fmt_datetime }}</span>
+          </p>
+          {% if not cv.text_ok %}<p class="field-error">No text could be extracted from this file.</p>{% endif %}
+        {% else %}
+          <p class="muted small">Not uploaded.</p>
+        {% endif %}
+        <form method="post" action="/settings/base-cv" enctype="multipart/form-data" class="inline-field">
+          <input type="hidden" name="role" value="{{ role }}">
+          <input type="file" name="cv_file" required accept=".pdf,.docx">
+          <button type="submit">{{ 'Replace' if cv else 'Upload' }}</button>
+        </form>
+      </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}
