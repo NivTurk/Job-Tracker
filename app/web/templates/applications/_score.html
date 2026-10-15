@@ -10,7 +10,9 @@
   </ul>
 {% endmacro %}
 
-<section class="panel" id="score-panel">
+{% set polling = selected_version and selected_score and selected_score.ai.running %}
+<section class="panel" id="score-panel"
+  {% if polling %}hx-get="/applications/{{ application.id }}/score?cv={{ selected_version.id }}&poll=1" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
   <div class="panel-head">
     <h2>ATS score</h2>
     {% if selected_version %}
@@ -29,28 +31,93 @@
     {% endif %}
   </div>
 
-  {% set result = selected_score %}
+  {% set view = selected_score %}
+  {% set result = view.deterministic if view else none %}
   {% if not selected_version %}
     <p class="muted">Attach a CV to see how it matches this job.</p>
-  {% elif not result.scorable %}
-    <p class="field-error">{{ result.reason }}</p>
-    {% if result.format_score is not none %}
-      <p>Format score: <span class="score {{ result.format_score | score_class }}">{{ result.format_score }}</span></p>
-    {% endif %}
   {% else %}
+    {% set ai = view.ai %}
     <div class="score-summary">
-      <div class="score-big {{ result.score | score_class }}">
-        <span class="value">{{ result.score }}</span>
-        <span class="label">deterministic</span>
+      <div class="score-big {{ view.value | score_class }}">
+        <span class="value">{{ view.value if view.value is not none else '-' }}</span>
+        <span class="label">{{ view.combined.label }}</span>
       </div>
       <dl class="subscores">
-        <dt>Keywords</dt><dd>{{ result.keyword_score }}</dd>
-        <dt>Format</dt><dd>{{ result.format_score }}</dd>
-        <dt>AI score</dt><dd class="muted">not set up yet</dd>
+        <dt>Deterministic</dt>
+        <dd>{% if result.scorable %}{{ result.score }} <span class="muted small">(keywords {{ result.keyword_score }}, format {{ result.format_score }})</span>{% else %}<span class="muted" title="{{ result.reason }}">n/a</span>{% endif %}</dd>
+        <dt>AI</dt>
+        <dd>{% if ai.status == 'ok' %}{{ ai.score }}{% elif ai.status == 'invalid' %}<span class="muted">failed</span>{% elif ai.status == 'unavailable' %}<span class="muted">n/a</span>{% elif ai.running %}<span class="muted">scoring...</span>{% else %}<span class="muted">pending</span>{% endif %}</dd>
+        <dt>Weights</dt>
+        <dd class="small muted">{{ ((1 - ai_share) * 100) | round | int }}% deterministic, {{ (ai_share * 100) | round | int }}% AI</dd>
       </dl>
+    </div>
+
+    {% if not result.scorable %}
+      <p class="field-error">{{ result.reason }}</p>
+    {% endif %}
+
+    <div class="ai-block" id="ai-block">
+      <div class="ai-head">
+        <h3>AI review</h3>
+        <span class="muted small">
+          {% if ai.scored_at %}{{ ai.model }}, {{ ai.scored_at | fmt_datetime }}{% endif %}
+        </span>
+        {% if ai.can_run and ai.status != 'unavailable' %}
+          <form method="post" action="/applications/{{ application.id }}/cvs/{{ selected_version.id }}/ai-score"
+                hx-post="/applications/{{ application.id }}/cvs/{{ selected_version.id }}/ai-score"
+                hx-target="#score-panel" hx-swap="outerHTML" hx-disabled-elt="find button">
+            <button type="submit">{{ 'Re-score' if ai.has_result else 'Score with AI' }}</button>
+            <span class="htmx-indicator muted small">Scoring, usually 5-20 seconds...</span>
+          </form>
+        {% endif %}
+      </div>
+
+      {% if ai_message %}<div class="notice error small" role="alert">{{ ai_message }}</div>
+      {% elif ai.last_failure %}<div class="notice warn small">Last attempt {{ ai.last_failure_at | fmt_datetime }} failed: {{ ai.last_failure }}</div>{% endif %}
+
+      {% if ai.status == 'ok' %}
+        {% set r = ai.result %}
+        {% if r.missing_must_haves %}
+          <div class="missing">
+            <h3>Missing must-haves</h3>
+            <ul class="ai-list">
+              {% for item in r.missing_must_haves %}<li><strong dir="auto">{{ item.requirement }}</strong> <span dir="auto">{{ item.note }}</span></li>{% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <div class="ai-columns">
+          <div>
+            <h4>Strengths</h4>
+            {% if r.strengths %}
+              <ul class="ai-list">
+                {% for item in r.strengths %}<li>{{ item.point }} <q class="evidence" dir="auto">{{ item.cv_evidence }}</q></li>{% endfor %}
+              </ul>
+            {% else %}<p class="muted small">None listed.</p>{% endif %}
+          </div>
+          <div>
+            <h4>Weak or implied matches</h4>
+            {% if r.weak_matches %}
+              <ul class="ai-list">
+                {% for item in r.weak_matches %}<li><strong dir="auto">{{ item.requirement }}</strong>: {{ item.why_weak }} <q class="evidence" dir="auto">{{ item.cv_evidence }}</q></li>{% endfor %}
+              </ul>
+            {% else %}<p class="muted small">None listed.</p>{% endif %}
+          </div>
+        </div>
+        <h4>Suggested edits</h4>
+        <ol class="ai-list suggestions">
+          {% for item in r.edit_suggestions %}<li><span class="tag">{{ item.section }}</span> {{ item.change }} <span class="muted small">{{ item.reason }}</span></li>{% endfor %}
+        </ol>
+      {% elif ai.status == 'invalid' %}
+        <p class="field-error">{{ ai.message }} The combined score uses the deterministic score only.</p>
+      {% else %}
+        <p class="muted small">{{ ai.message }}</p>
+      {% endif %}
     </div>
   {% endif %}
 
+  {% if result and (result.match or result.notes) %}
+    <h3 class="section-label">Keyword match (deterministic)</h3>
+  {% endif %}
   {% if result and result.notes %}
     <ul class="notes-list">{% for note in result.notes %}<li>{{ note }}</li>{% endfor %}</ul>
   {% endif %}
@@ -58,7 +125,7 @@
   {% if result and result.match %}
     {% if result.missing_required %}
       <div class="missing">
-        <h3>Missing required</h3>
+        <h3>Missing required skills</h3>
         <p dir="auto">{{ result.missing_required | map(attribute='skill') | join(', ') }}</p>
       </div>
     {% endif %}
@@ -102,6 +169,11 @@
         The deterministic score is {{ (weights.keyword_share * 100) | round | int }}% keywords and
         {{ ((1 - weights.keyword_share) * 100) | round | int }}% format. Format starts at 100 and loses 10 per warning.
         Skill list version {{ result.lexicon_version }}.
+      </p>
+      <p class="small">
+        Combined score: {{ ((1 - ai_share) * 100) | round | int }}% deterministic and {{ (ai_share * 100) | round | int }}% AI
+        (change it in Settings). When one half is missing, the other is shown alone. The AI review is cached per CV text,
+        JD text, model and prompt version, so it only changes when you press Re-score or edit the CV or JD.
       </p>
     </details>
   {% endif %}

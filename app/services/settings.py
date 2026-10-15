@@ -29,6 +29,12 @@ DEFAULTS: dict[str, Any] = {
         "preferred_weight": 1.0,
         "implied_credit": 0.75,
         "keyword_share": 0.8,
+        # Share of the AI score in the combined score (0 = deterministic only, 1 = AI only).
+        "ai_share": 0.5,
+    },
+    "ai": {
+        # Score with AI in the background when a CV is attached or the JD text changes.
+        "auto_score": True,
     },
 }
 
@@ -74,3 +80,14 @@ def scoring_weights(session: Session) -> ScoringWeights:
         implied_credit=float(values["implied_credit"]),
         keyword_share=float(values["keyword_share"]),
     )
+
+
+def ai_share(session: Session) -> float:
+    """Weight of the AI score in the combined score, clamped to 0-1."""
+    values = {**DEFAULTS["scoring"], **get_setting(session, "scoring")}
+    return min(1.0, max(0.0, float(values["ai_share"])))
+
+
+def ai_auto_score(session: Session) -> bool:
+    values = {**DEFAULTS["ai"], **get_setting(session, "ai")}
+    return bool(values["auto_score"])

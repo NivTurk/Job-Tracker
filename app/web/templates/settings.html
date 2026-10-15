@@ -53,5 +53,70 @@
       </div>
     {% endfor %}
   </section>
+
+  <section class="panel">
+    <h2>ATS score</h2>
+    <p class="muted small">The combined score mixes the deterministic score and the AI score. If one of them is missing, the other is shown alone.</p>
+    <form method="post" action="/settings/scoring" class="inline-field">
+      <label>AI share of the combined score (%)
+        <input type="number" name="ai_share_percent" min="0" max="100" step="1" value="{{ ai_share_percent }}" required>
+      </label>
+      <button type="submit">Save</button>
+    </form>
+    <p class="muted small">Now: {{ 100 - ai_share_percent }}% deterministic, {{ ai_share_percent }}% AI. 0 ignores the AI score, 100 ignores the deterministic one.</p>
+
+    <h3>AI scoring</h3>
+    {% if ai.enabled %}
+      <p class="small">On, using <code>{{ ai.model }}</code>.</p>
+    {% else %}
+      <p class="small">Off. Add <code>ANTHROPIC_API_KEY</code> to <code>.env</code> and restart the app to turn it on.</p>
+    {% endif %}
+
+    <form method="post" action="/settings/ai" class="settings-form">
+      <label class="checkbox">
+        <input type="checkbox" name="auto_score" value="1" {% if ai_auto_score %}checked{% endif %}>
+        Score automatically when a CV is attached or the job description text changes
+      </label>
+      <p class="muted small">Runs in the background, one call per new CV version or JD edit (only the sent CV is re-scored after a JD edit). Results already cached are not scored again. You can always press "Score with AI" or "Re-score" by hand.</p>
+      <button type="submit">Save</button>
+    </form>
+
+    <h3>API usage</h3>
+    <table class="usage-table">
+      <thead><tr><th></th><th class="num">Calls</th><th class="num">Failed</th><th class="num">Tokens in / out</th><th class="num">Est. cost</th></tr></thead>
+      <tbody>
+        {% for label, usage in [('Last 30 days', usage_30d), ('All time', usage_all)] %}
+          <tr>
+            <td>{{ label }}</td>
+            <td class="num">{{ usage.calls }}</td>
+            <td class="num">{{ usage.failed }}</td>
+            <td class="num">{{ '{:,}'.format(usage.input_tokens) }} / {{ '{:,}'.format(usage.output_tokens) }}</td>
+            <td class="num">${{ '%.4f' % usage.cost_usd }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted small">Costs are estimates from token counts and the price list in <code>app/ai/client.py</code>. Your Anthropic Console has the real bill.</p>
+
+    {% if recent_calls %}
+      <details>
+        <summary>Last {{ recent_calls | length }} calls</summary>
+        <table class="usage-table">
+          <thead><tr><th>When</th><th>Result</th><th class="num">Tokens</th><th class="num">Cost</th><th class="num">Time</th></tr></thead>
+          <tbody>
+            {% for call in recent_calls %}
+              <tr>
+                <td class="nowrap">{{ call.created_at | fmt_datetime }}{% if call.application_id %} <a href="/applications/{{ call.application_id }}">#{{ call.application_id }}</a>{% endif %}</td>
+                <td>{{ call.outcome }}{% if call.attempt > 1 %} (retry){% endif %}{% if call.error %}<div class="muted small">{{ call.error }}</div>{% endif %}</td>
+                <td class="num">{{ call.input_tokens or 0 }} / {{ call.output_tokens or 0 }}</td>
+                <td class="num">{{ '$%.4f' % call.est_cost_usd if call.est_cost_usd is not none else '-' }}</td>
+                <td class="num">{{ '%.1f' % (call.latency_ms / 1000) }}s</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

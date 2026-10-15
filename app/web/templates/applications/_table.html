@@ -9,7 +9,7 @@
       <th>Stage</th>
       <th>Applied</th>
       <th>CV</th>
-      <th class="num">Score</th>
+      <th class="num" title="Combined score of the sent CV; D = deterministic">Score</th>
     </tr>
   </thead>
   <tbody>
@@ -34,10 +34,14 @@
         {% else %}<span class="muted">none</span>{% endif %}
       </td>
       <td class="num">
-        {% if row.score_value is not none %}
-          <span class="score {{ row.score_value | score_class }}">{{ row.score_value }}</span>
-        {% elif row.score %}
-          <span class="muted small" title="{{ row.score.reason }}">n/a</span>
+        {% if row.score %}
+          {% set result = row.score %}
+          {% if row.score_value is not none %}
+            <span class="score {{ row.score_value | score_class }}" title="{{ result.combined.label }}">{{ row.score_value }}</span>
+          {% else %}
+            <span class="muted small" title="{{ result.deterministic.reason or '' }}">n/a</span>
+          {% endif %}
+          {% include "applications/_subscores.html" %}
         {% else %}
           <span class="muted small">-</span>
         {% endif %}

@@ -1,0 +1,5 @@
+{# Expects `result`: a ScoreView. One line: deterministic and AI sub-scores. #}
+<span class="muted small sub-scores">
+  D {{ result.deterministic_value if result.deterministic_value is not none else 'n/a' }}
+  &middot; AI {% if result.ai.status == 'ok' %}{{ result.ai_value }}{% elif result.ai.status == 'invalid' %}failed{% elif result.ai.status == 'unavailable' %}n/a{% elif result.ai.running %}scoring...{% else %}pending{% endif %}
+</span>

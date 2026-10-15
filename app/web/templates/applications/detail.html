@@ -63,11 +63,12 @@
             <div class="cv-row">
               <span class="cv-version">v{{ version.version }}</span>
               {% if version.is_sent %}<span class="tag sent">sent</span>{% endif %}
-              {% if result and result.scorable %}
-                <span class="score {{ result.score | score_class }}">{{ result.score }}</span>
+              {% if result and result.value is not none %}
+                <span class="score {{ result.value | score_class }}" title="{{ result.combined.label }}">{{ result.value }}</span>
               {% else %}
                 <span class="muted small">not scored</span>
               {% endif %}
+              {% if result %}{% include "applications/_subscores.html" %}{% endif %}
             </div>
             {% if version.label %}<div dir="auto">{{ version.label }}</div>{% endif %}
             <div class="muted small" dir="auto">

@@ -36,7 +36,7 @@
   <label>Company
     <input class="filter-text" type="search" name="company" value="{{ filters.company }}" placeholder="Any" dir="auto">
   </label>
-  <label>Score
+  <label>Combined score
     <span class="range">
       <input class="filter-text" type="number" name="min_score" min="0" max="100" value="{{ filters.min_score if filters.min_score is not none else '' }}" placeholder="0" aria-label="Minimum score">
       <span>to</span>

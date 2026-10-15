@@ -11,11 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Application, ApplicationCv, Company, Stage
-from app.scoring.deterministic import DeterministicScore
 from app.scoring.normalize import normalize_company, normalize_text, normalize_title
 from app.services import pipeline
-from app.services.scores import score_sent_version
-from app.services.settings import get_setting, scoring_weights
+from app.services.ai_scores import AiConfig
+from app.services.scores import ScoreView, score_views
+from app.services.settings import get_setting
 from app.timeutil import today_local, utcnow
 
 SOURCES: dict[str, str] = {
@@ -203,18 +203,19 @@ class ListFilters:
 @dataclass
 class ApplicationRow:
     application: Application
-    score: DeterministicScore | None
+    score: ScoreView | None  # for the sent CV version
     cv_count: int = 0
 
     @property
     def score_value(self) -> int | None:
-        return self.score.score if self.score and self.score.scorable else None
+        """The combined score, used for filtering and sorting."""
+        return self.score.value if self.score else None
 
 
 _STAGE_SORT_ORDER = {stage: index for index, stage in enumerate(pipeline.PIPELINE_ORDER + pipeline.CLOSED_STAGES)}
 
 
-def list_applications(session: Session, filters: ListFilters) -> list[ApplicationRow]:
+def list_applications(session: Session, filters: ListFilters, ai_config: AiConfig | None = None) -> list[ApplicationRow]:
     query = select(Application).options(
         selectinload(Application.company),
         selectinload(Application.cv_versions).selectinload(ApplicationCv.cv_file),
@@ -230,14 +231,17 @@ def list_applications(session: Session, filters: ListFilters) -> list[Applicatio
     if filters.company.strip():
         query = query.join(Company).where(Company.name_norm.contains(normalize_company(filters.company)))
 
-    weights = scoring_weights(session)
+    applications = list(session.scalars(query))
+    sent = [(application, application.sent_cv) for application in applications if application.sent_cv is not None]
+    views = score_views(session, sent, ai_config or AiConfig())  # type: ignore[arg-type]
+    by_application = {application.id: view for (application, _), view in zip(sent, views, strict=True)}
     rows = [
         ApplicationRow(
             application=application,
-            score=score_sent_version(application, weights),
+            score=by_application.get(application.id),
             cv_count=len(application.cv_versions),
         )
-        for application in session.scalars(query)
+        for application in applications
     ]
 
     if filters.min_score is not None or filters.max_score is not None:

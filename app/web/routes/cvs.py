@@ -1,6 +1,6 @@
 """CV upload, versions, download."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
@@ -9,14 +9,15 @@ from app.db import get_db
 from app.models import ApplicationCv, CvFile
 from app.services.cv_store import CvTooLargeError, attach_cv, mark_sent, store_cv
 from app.services.extraction import ExtractionError, UnsupportedFileError
-from app.web.routes.common import application_or_404, get_config_from
+from app.web.routes.common import application_or_404, get_auto_scorer, get_config_from
 from app.web.templating import templates
 
 router = APIRouter()
 
 
 @router.post("/applications/{application_id}/cvs", response_class=HTMLResponse)
-async def upload_cv(request: Request, application_id: int, db: Session = Depends(get_db)) -> Response:
+async def upload_cv(request: Request, application_id: int, background: BackgroundTasks,
+                    db: Session = Depends(get_db)) -> Response:
     application = application_or_404(db, application_id)
     form = await request.form()
     upload = form.get("cv_file")
@@ -31,6 +32,9 @@ async def upload_cv(request: Request, application_id: int, db: Session = Depends
         return _error(request, application_id, str(exc))
     version = attach_cv(db, application, cv_file, str(form.get("cv_label") or "").strip() or None)
     db.commit()
+    scorer = get_auto_scorer(request)
+    if scorer is not None:
+        scorer.schedule(db, background, application, cv_file)
     return RedirectResponse(f"/applications/{application_id}?cv={version.id}#cvs", status_code=303)
 
 

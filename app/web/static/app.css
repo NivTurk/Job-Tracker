@@ -346,3 +346,25 @@ details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
   .page { padding: 1rem; }
   .topbar { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 }
+
+/* --- AI review ------------------------------------------------------------ */
+
+.ai-block { border-top: 1px solid var(--border); margin: 0.75rem 0; padding-top: 0.5rem; }
+.ai-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.5rem; }
+.ai-head h3 { margin: 0; }
+.ai-head form { margin: 0 0 0 auto; display: flex; align-items: center; gap: 0.5rem; }
+.ai-head button[disabled] { opacity: 0.6; cursor: wait; }
+.ai-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ai-list { margin: 0.2rem 0 0.75rem; padding-left: 1.25rem; font-size: 0.9rem; }
+.ai-list li { margin-bottom: 0.3rem; }
+.missing .ai-list { margin-bottom: 0; }
+.evidence { color: var(--muted); font-size: 0.82rem; }
+.ai-block h4 { margin: 0.5rem 0 0.2rem; font-size: 0.9rem; }
+.notice.small { font-size: 0.85rem; padding: 0.4rem 0.7rem; margin-bottom: 0.5rem; }
+.sub-scores { display: block; white-space: nowrap; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0.25rem 0 0.5rem; }
+.usage-table th, .usage-table td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--border); text-align: start; vertical-align: top; }
+.usage-table th { color: var(--muted); font-weight: 600; }
+.usage-table .num { text-align: end; font-variant-numeric: tabular-nums; }
+@media (max-width: 800px) { .ai-columns { grid-template-columns: 1fr; } }
+.section-label { border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.75rem; }

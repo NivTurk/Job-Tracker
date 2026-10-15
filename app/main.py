@@ -12,8 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.ai.client import AiClient, ClaudeClient
 from app.config import PROJECT_ROOT, Config, get_config
 from app.db import make_engine, make_session_factory
+from app.services.auto_score import AutoScorer
 from app.web.routes import applications, cvs, settings
 from app.web.security import SameOriginMiddleware
 from app.web.templating import templates
@@ -30,7 +32,8 @@ def run_migrations(database_url: str) -> None:
     command.upgrade(alembic_config, "head")
 
 
-def create_app(config: Config | None = None, migrate: bool = True) -> FastAPI:
+def create_app(config: Config | None = None, migrate: bool = True, ai_client: AiClient | None = None) -> FastAPI:
+    """ai_client: inject a fake in tests. By default one is built when ANTHROPIC_API_KEY is set."""
     config = config or get_config()
     config.ensure_dirs()
     if migrate:
@@ -46,6 +49,11 @@ def create_app(config: Config | None = None, migrate: bool = True) -> FastAPI:
     app = FastAPI(title="Job tracker", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
     app.state.session_factory = make_session_factory(engine)
+    # None means AI scoring is off: the tracker works with deterministic scores only.
+    if ai_client is None and config.anthropic_api_key.strip():
+        ai_client = ClaudeClient(config.anthropic_api_key.strip())
+    app.state.ai_client = ai_client
+    app.state.auto_scorer = AutoScorer(app.state.session_factory, ai_client) if ai_client else None
 
     app.add_middleware(SameOriginMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.allowed_host_list)

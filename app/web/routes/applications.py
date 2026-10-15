@@ -2,15 +2,16 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import FormData, UploadFile
 
 from app.db import get_db
-from app.models import Application, Stage
+from app.models import Application, ApplicationCv, Stage
 from app.services import pipeline
+from app.services.ai_scores import run_score
 from app.services.applications import (
     ApplicationInput,
     ApplicationValidationError,
@@ -28,10 +29,18 @@ from app.services.cv_store import CvTooLargeError, attach_cv, refresh_format_rep
 from app.services.extraction import ExtractionError, UnsupportedFileError
 from app.services.jd_fetch import fetch_jd
 from app.services.scores import score_all_versions
-from app.services.settings import scoring_weights
+from app.services.settings import ai_share, scoring_weights
 from app.timeutil import today_local
 from app.web.forms import FormValueError, parse_date, parse_score
-from app.web.routes.common import application_or_404, get_config_from, htmx_target, is_htmx
+from app.web.routes.common import (
+    ai_config_from,
+    application_or_404,
+    get_ai_client,
+    get_auto_scorer,
+    get_config_from,
+    htmx_target,
+    is_htmx,
+)
 from app.web.templating import templates
 
 router = APIRouter()
@@ -74,7 +83,7 @@ def list_view(
         descending=dir != "asc",
     )
     context = {
-        "rows": list_applications(db, filters),
+        "rows": list_applications(db, filters, ai_config_from(request)),
         "filters": filters,
         "counts": stage_counts(db),
         "pipeline_order": pipeline.PIPELINE_ORDER,
@@ -228,8 +237,16 @@ def duplicates_partial(
     return templates.TemplateResponse(request, "applications/_duplicates.html", {"duplicates": duplicates})
 
 
+def _auto_score(request: Request, db: Session, background: BackgroundTasks, application: Application,
+                version: ApplicationCv | None) -> None:
+    """Queue a background AI score for this CV version, if auto-scoring is on and it isn't cached."""
+    scorer = get_auto_scorer(request)
+    if scorer is not None and version is not None:
+        scorer.schedule(db, background, application, version.cv_file)
+
+
 @router.post("/applications", response_class=HTMLResponse)
-async def create(request: Request, db: Session = Depends(get_db)) -> Response:
+async def create(request: Request, background: BackgroundTasks, db: Session = Depends(get_db)) -> Response:
     form = await request.form()
     values = _form_values(form)
     errors: dict[str, str] = {}
@@ -264,9 +281,11 @@ async def create(request: Request, db: Session = Depends(get_db)) -> Response:
     except ApplicationValidationError as exc:
         db.rollback()
         return _render_form(request, values, exc.errors, duplicates, status_code=422)
+    version = None
     if cv_file is not None:
-        attach_cv(db, application, cv_file, values["cv_label"] or None)
+        version = attach_cv(db, application, cv_file, values["cv_label"] or None)
     db.commit()
+    _auto_score(request, db, background, application, version)
     return RedirectResponse(f"/applications/{application.id}", status_code=303)
 
 
@@ -277,8 +296,10 @@ def edit_form(request: Request, application_id: int, db: Session = Depends(get_d
 
 
 @router.post("/applications/{application_id}/edit", response_class=HTMLResponse)
-async def edit(request: Request, application_id: int, db: Session = Depends(get_db)) -> Response:
+async def edit(request: Request, application_id: int, background: BackgroundTasks,
+               db: Session = Depends(get_db)) -> Response:
     application = application_or_404(db, application_id)
+    old_jd = application.jd_text
     form = await request.form()
     values = _form_values(form)
     errors: dict[str, str] = {}
@@ -298,6 +319,9 @@ async def edit(request: Request, application_id: int, db: Session = Depends(get_
         db.rollback()
         return _render_form(request, values, exc.errors, duplicates, application=application, status_code=422)
     db.commit()
+    if application.jd_text != old_jd:
+        # Only the sent version, to keep the cost to one call per JD edit.
+        _auto_score(request, db, background, application, application.sent_cv)
     return RedirectResponse(f"/applications/{application.id}", status_code=303)
 
 
@@ -331,7 +355,10 @@ def _status_context(application: Application, error: str | None = None, oob: boo
     }
 
 
-def _detail_context(request: Request, db: Session, application: Application, selected_cv: int | None) -> dict[str, Any]:
+def _detail_context(
+    request: Request, db: Session, application: Application, selected_cv: int | None,
+    ai_message: str | None = None,
+) -> dict[str, Any]:
     config = get_config_from(request)
     changed = False
     for version in application.cv_versions:
@@ -339,7 +366,7 @@ def _detail_context(request: Request, db: Session, application: Application, sel
     if changed:
         db.commit()
 
-    scores = score_all_versions(db, application)
+    scores = score_all_versions(db, application, ai_config_from(request))
     versions = application.cv_versions
     selected = next((v for v in versions if v.id == selected_cv), None)
     selected = selected or application.sent_cv or (versions[-1] if versions else None)
@@ -350,6 +377,9 @@ def _detail_context(request: Request, db: Session, application: Application, sel
         "selected_score": scores.get(selected.id) if selected else None,
         "duplicates": find_duplicates(db, application.company.name, application.title, exclude_id=application.id),
         "weights": scoring_weights(db),
+        "ai_share": ai_share(db),
+        "ai_enabled": get_ai_client(request) is not None,
+        "ai_message": ai_message,
     }
 
 
@@ -361,11 +391,46 @@ def detail(request: Request, application_id: int, cv: int | None = None, db: Ses
 
 
 @router.get("/applications/{application_id}/score", response_class=HTMLResponse)
-def score_partial(request: Request, application_id: int, cv: int | None = None, db: Session = Depends(get_db)) -> Response:
-    """HTMX: the ATS breakdown for one CV version."""
+def score_partial(request: Request, application_id: int, cv: int | None = None, poll: str = "",
+                  db: Session = Depends(get_db)) -> Response:
+    """HTMX: the ATS breakdown for one CV version.
+
+    poll=1 comes from the panel while a background AI score runs. Once it is
+    done, the whole page reloads so the CV list and list badges update too.
+    """
     application = application_or_404(db, application_id)
+    context = _detail_context(request, db, application, cv)
+    selected = context["selected_score"]
+    if poll and is_htmx(request) and not (selected and selected.ai.running):
+        return Response(status_code=200, headers={"HX-Refresh": "true"})
+    return templates.TemplateResponse(request, "applications/_score.html", context)
+
+
+@router.post("/applications/{application_id}/cvs/{version_id}/ai-score", response_class=HTMLResponse)
+def ai_score(request: Request, application_id: int, version_id: int, db: Session = Depends(get_db)) -> Response:
+    """Run the AI score for one CV version now (the "Score with AI" / "Re-score" button).
+
+    A plain def route, so FastAPI runs the blocking API call in a worker thread.
+    """
+    application = application_or_404(db, application_id)
+    version = db.get(ApplicationCv, version_id)
+    if version is None or version.application_id != application_id:
+        raise HTTPException(status_code=404, detail="CV version not found.")
+    client = get_ai_client(request)
+    message = None
+    if client is None:
+        message = "AI scoring is off. Add ANTHROPIC_API_KEY to .env and restart the app."
+    else:
+        view = run_score(db, client, application, version.cv_file)
+        db.commit()
+        if view.status == "pending" and view.last_failure:
+            message = f"AI scoring failed: {view.last_failure}"
+        elif view.last_failure:
+            message = f"Re-score failed, showing the previous AI result. {view.last_failure}"
+    if not is_htmx(request):
+        return RedirectResponse(f"/applications/{application_id}?cv={version_id}#score-panel", status_code=303)
     return templates.TemplateResponse(request, "applications/_score.html",
-                                      _detail_context(request, db, application, cv))
+                                      _detail_context(request, db, application, version_id, message))
 
 
 def _status_response(request: Request, application_id: int, application: Application, error: str | None) -> Response:
