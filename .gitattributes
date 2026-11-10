@@ -1,0 +1,6 @@
+# Keep Unix line endings in the repo and in checkouts, even when edited on Windows.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary

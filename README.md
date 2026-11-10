@@ -27,6 +27,44 @@ It runs on your own machine, stores everything in SQLite and a data folder, and 
 
 Requires Python 3.11 or newer.
 
+### Ubuntu (22.04 or newer)
+
+```bash
+git clone <this repo> job-tracker
+cd job-tracker
+./scripts/install-ubuntu.sh
+```
+
+The script installs Python 3.11+ and `python3-venv` with apt if they are missing (Ubuntu 24.04 already has Python 3.12; on 22.04 it installs `python3.11`), creates `.venv`, installs the dependencies, creates `.env` from `.env.example`, and makes `.env` and `data/` readable by your user only. Run it as your normal user, not with sudo; it asks for sudo only for apt.
+
+To run the app as a background service that starts on login:
+
+```bash
+./scripts/install-ubuntu.sh --service
+```
+
+This installs `deploy/job-tracker.service` as a systemd user service. Useful commands:
+
+```bash
+systemctl --user status job-tracker
+```
+
+```bash
+journalctl --user -u job-tracker -f
+```
+
+```bash
+systemctl --user restart job-tracker
+```
+
+To keep it running after you log out (or start at boot without logging in):
+
+```bash
+sudo loginctl enable-linger $USER
+```
+
+### Manual setup (any Linux)
+
 ```bash
 git clone <this repo> job-tracker
 cd job-tracker
@@ -155,4 +193,4 @@ tests/                 pytest, with sample JDs in tests/fixtures
 2. ~~AI half of the score via the Anthropic API, combined score, caching~~ (done)
 3. Follow-up thresholds in Israeli business days, overdue banner, Telegram bot with daily digest and inline buttons
 4. Job search: public job board APIs (Greenhouse, Lever, Comeet) plus Claude web search, filtering, "Add to tracker"
-5. Dashboard stats, systemd unit, README for Telegram setup and running as a service
+5. Dashboard stats, README for Telegram setup (the systemd unit is already in `deploy/`)
